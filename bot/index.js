@@ -1,17 +1,10 @@
 import { Telegraf, Markup } from 'telegraf';
 import dotenv from 'dotenv';
-import { createClient } from '@supabase/supabase-js';
-import cron from 'node-cron';
+import { saveRegistration, getRegistration } from './db.js';
 
 dotenv.config();
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
-
-// Инициализация Supabase клиента
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
 
 // Состояния анкеты
 const STATES = {
@@ -103,55 +96,6 @@ const setUserState = (userId, state) => {
   userStates.set(userId, state);
 };
 
-// Функция массовой рассылки
-async function sendBroadcast(message) {
-  console.log('🚀 Начинаем массовую рассылку...');
-  
-  try {
-    // Получаем всех пользователей из Supabase
-    const { data: users, error } = await supabase
-      .from('applications')
-      .select('telegram_id, name')
-      .not('telegram_id', 'is', null);
-
-    if (error) {
-      console.error('❌ Ошибка получения пользователей:', error);
-      return;
-    }
-
-    if (!users || users.length === 0) {
-      console.log('⚠️ Нет пользователей для рассылки');
-      return;
-    }
-
-    console.log(`📊 Найдено пользователей: ${users.length}`);
-
-    let successCount = 0;
-    let errorCount = 0;
-
-    // Отправляем сообщения с задержкой (для соблюдения лимитов Telegram API)
-    for (const user of users) {
-      try {
-        await bot.telegram.sendMessage(user.telegram_id, message, { parse_mode: 'HTML' });
-        successCount++;
-        console.log(`✅ Отправлено ${user.name} (${user.telegram_id})`);
-        
-        // Задержка 50ms между сообщениями (до 20 сообщений в секунду, безопасный лимит)
-        await new Promise(resolve => setTimeout(resolve, 50));
-      } catch (err) {
-        errorCount++;
-        console.error(`❌ Ошибка отправки ${user.name} (${user.telegram_id}):`, err.message);
-      }
-    }
-
-    console.log(`\n📈 Рассылка завершена:`);
-    console.log(`   ✅ Успешно: ${successCount}`);
-    console.log(`   ❌ Ошибок: ${errorCount}`);
-  } catch (err) {
-    console.error('❌ Критическая ошибка рассылки:', err);
-  }
-}
-
 // Команда /start - показывается при первом открытии бота
 bot.start((ctx) => {
   const userId = ctx.from.id;
@@ -166,7 +110,7 @@ bot.start((ctx) => {
 });
 
 // Обработчик текстовых сообщений
-bot.on('text', async (ctx) => {
+bot.on('text', (ctx) => {
   const userId = ctx.from.id;
   const state = getUserState(userId);
   const data = getUserData(userId);
@@ -226,29 +170,29 @@ bot.on('text', async (ctx) => {
       data.activity_type = text.trim();
       setUserState(userId, STATES.COMPLETED);
 
-      const { data: applicationData, error: applicationError } = await supabase
-        .from('applications')
-        .upsert({
+      // СОХРАНЯЕМ ДАННЫЕ В БД
+      try {
+        saveRegistration({
+          telegram_id: userId,
           firstname: data.firstname,
           lastname: data.lastname,
           phone: data.phone,
           company: data.company,
           activity_type: data.activity_type,
-          telegram_id: userId
-        })
+        });
 
-      if (applicationError) {
-        console.error('Error creating application:', applicationError);
+        // Формируем итоговое сообщение
+        const summary = 
+          `✅ <b>${data.firstname}, записали вас на вебинар.</b>\n\n` +
+          'Он стартует 30 октября в 10:00 по МСК. Мы пришлем сообщение с напоминанием и ссылкой на вебинар заранее, поэтому не отключайте, пожалуйста, уведомления.\n\n' +
+          'До встречи!\n\n'
+        
+        ctx.reply(summary, { parse_mode: 'HTML' });
+      } catch (e) {
+        console.error('DB error:', e);
+        return ctx.reply('Произошла ошибка при сохранении. Попробуйте позже.');
       }
       
-      // Формируем итоговое сообщение
-      const summary = 
-        `✅ <b>${data.firstname}, записали вас на вебинар.</b>\n\n` +
-        'Он стартует 30 октября в 10:00 по МСК. Мы пришлем сообщение с напоминанием и ссылкой на вебинар заранее, поэтому не отключайте, пожалуйста, уведомления.\n\n' +
-        'До встречи!\n\n'
-      
-      ctx.reply(summary, { parse_mode: 'HTML' });
-
       break;
       
     case STATES.IDLE:
@@ -274,26 +218,6 @@ bot.help((ctx) => {
 bot.catch((err, ctx) => {
   console.error(`Ошибка для ${ctx.updateType}:`, err);
   ctx.reply('Произошла ошибка. Попробуйте позже.');
-});
-
-// Настройка расписания массовых рассылок
-// Формат cron: минута час день месяц день_недели
-// Часовой пояс: Europe/Moscow (МСК)
-
-// Первая рассылка: 11 октября 2025 в 12:05 МСК
-cron.schedule('5 17 10 10 *', () => {
-  const message = 
-    '🔔 <b>Напоминание о вебинаре!</b>\n\n' +
-    'Вебинар начнется сегодня в 15:00 по МСК.\n\n' +
-    '📌 Подготовьтесь заранее:\n' +
-    '• Проверьте интернет-соединение\n' +
-    '• Приготовьте вопросы спикеру\n\n' +
-    'Ссылка на вебинар будет отправлена за 10 минут до начала.\n\n' +
-    'До встречи! 👋';
-  
-  sendBroadcast(message);
-}, {
-  timezone: 'Europe/Moscow'
 });
 
 // Запуск бота
