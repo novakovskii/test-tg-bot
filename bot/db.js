@@ -4,9 +4,25 @@ import path from 'node:path';
 import fs from 'node:fs';
 
 const dbPath = process.env.SQLITE_PATH || path.join(process.cwd(), 'data', 'bot.db');
-fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
-const db = new Database(dbPath);
+// Создаем директорию для БД с обработкой ошибок
+try {
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  console.log('✅ Директория для БД создана:', path.dirname(dbPath));
+} catch (error) {
+  console.error('❌ Ошибка создания директории для БД:', error.message);
+  process.exit(1);
+}
+
+// Инициализация БД с обработкой ошибок
+let db;
+try {
+  db = new Database(dbPath);
+  console.log('✅ База данных подключена:', dbPath);
+} catch (error) {
+  console.error('❌ Ошибка подключения к БД:', error.message);
+  process.exit(1);
+}
 
 // Режимы для продакшена на VPS
 db.pragma('journal_mode = WAL');   // параллелизм чтений
@@ -57,3 +73,24 @@ export function getTotalCount() {
   const row = countStmt.get();
   return row?.c ?? 0;
 }
+
+// Graceful shutdown для закрытия БД
+export function closeDatabase() {
+  try {
+    db.close();
+    console.log('✅ База данных закрыта корректно');
+  } catch (error) {
+    console.error('❌ Ошибка при закрытии БД:', error.message);
+  }
+}
+
+// Обработка сигналов завершения процесса
+process.once('SIGINT', () => {
+  closeDatabase();
+  process.exit(0);
+});
+
+process.once('SIGTERM', () => {
+  closeDatabase();
+  process.exit(0);
+});

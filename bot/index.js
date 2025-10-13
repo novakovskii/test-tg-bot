@@ -4,6 +4,13 @@ import { saveRegistration, getRegistration } from './db.js';
 
 dotenv.config();
 
+// Проверка наличия BOT_TOKEN
+if (!process.env.BOT_TOKEN) {
+  console.error('❌ Ошибка: BOT_TOKEN не установлен в переменных окружения!');
+  console.error('Создайте файл .env и добавьте: BOT_TOKEN=ваш_токен');
+  process.exit(1);
+}
+
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 // Состояния анкеты
