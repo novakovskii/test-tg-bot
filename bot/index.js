@@ -134,7 +134,7 @@ async function sendBroadcast(message) {
         
         // Задержка 33ms между сообщениями (30 сообщений в секунду)
         // Это безопасный лимит для Telegram API
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        await new Promise(resolve => setTimeout(resolve, 35));
       } catch (err) {
         errorCount++;
         const errorInfo = {
