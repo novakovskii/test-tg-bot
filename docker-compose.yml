@@ -1,0 +1,36 @@
+services:
+  bot:
+    env_file:
+      - .env
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    container_name: himcentre-bot
+    restart: always
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - TZ=Europe/Moscow
+    # Закомментировано для продакшена - код уже в образе
+    # volumes:
+    #   - ./bot:/app
+    #   - /app/node_modules
+    networks:
+      - himcentre-network
+
+  # landing:
+  #   build:
+  #     context: ./landing
+  #     dockerfile: Dockerfile
+  #   container_name: himcentre-landing
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3000:80"
+  #   networks:
+  #     - himcentre-network
+
+networks:
+  himcentre-network:
+    driver: bridge
+
