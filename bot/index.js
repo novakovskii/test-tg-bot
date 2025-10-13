@@ -106,33 +106,60 @@ const setUserState = (userId, state) => {
 
 // Функция массовой рассылки
 async function sendBroadcast(message) {
-  console.log('🚀 Начинаем массовую рассылку...');
+  const startTime = Date.now();
+  console.log('\n🚀 Начинаем массовую рассылку...');
   
   try {
-    // Получаем всех пользователей из Supabase
-    const users = await getRegistrations();
+    // Получаем всех пользователей из БД
+    const users = getRegistrations();
+    const totalUsers = users.length;
+    
+    console.log(`📊 Найдено пользователей: ${totalUsers}`);
+
+    if (totalUsers === 0) {
+      console.log('⚠️ Нет пользователей для рассылки');
+      return;
+    }
 
     let successCount = 0;
     let errorCount = 0;
+    const errors = [];
 
-    // Отправляем сообщения с задержкой (для соблюдения лимитов Telegram API)
-    for (const user of users) {
+    // Отправляем сообщения с задержкой (30 сообщений в секунду = 33ms между сообщениями)
+    for (let user of users) {
+      
       try {
         await bot.telegram.sendMessage(user.telegram_id, message, { parse_mode: 'HTML' });
         successCount++;
-        console.log(`✅ Отправлено ${user.name} (${user.telegram_id})`);
         
-        // Задержка 50ms между сообщениями (до 20 сообщений в секунду, безопасный лимит)
-        await new Promise(resolve => setTimeout(resolve, 50));
+        // Задержка 33ms между сообщениями (30 сообщений в секунду)
+        // Это безопасный лимит для Telegram API
+        await new Promise(resolve => setTimeout(resolve, 3000));
       } catch (err) {
         errorCount++;
-        console.error(`❌ Ошибка отправки ${user.name} (${user.telegram_id}):`, err.message);
+        const errorInfo = {
+          telegram_id: user.telegram_id,
+          error: err.message
+        };
+        errors.push(errorInfo);
+        console.error(`❌ Ошибка отправки (${user.telegram_id}): ${err.message}`);
       }
     }
 
-    console.log(`\n📈 Рассылка завершена:`);
+    const endTime = Date.now();
+    const duration = ((endTime - startTime) / 1000).toFixed(2);
+
+    console.log(`\n📈 Рассылка завершена за ${duration} секунд:`);
     console.log(`   ✅ Успешно: ${successCount}`);
     console.log(`   ❌ Ошибок: ${errorCount}`);
+    console.log(`   📊 Всего: ${totalUsers}`);
+    
+    if (errors.length > 0) {
+      console.log('\n❌ Детали ошибок:');
+      errors.forEach(err => {
+        console.log(`   - ${err.telegram_id}): ${err.error}`);
+      });
+    }
   } catch (err) {
     console.error('❌ Критическая ошибка рассылки:', err);
   }
@@ -263,7 +290,7 @@ bot.catch((err, ctx) => {
 });
 
 // Запуск cron задачи для отправки напоминания о вебинаре
-cron.schedule('10 18 * * *', () => {
+cron.schedule('46 18 * * *', () => {
   const message = 
     '🔔 <b>Напоминание о вебинаре!</b>\n\n' +
     'Вебинар начнется сегодня в 15:00 по МСК.\n\n' +
