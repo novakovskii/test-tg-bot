@@ -5,7 +5,7 @@ services:
     build:
       context: ./bot
       dockerfile: Dockerfile
-    container_name: himcentre-bot
+    container_name: himcentre-test-bot
     restart: always
     environment:
       - BOT_TOKEN=${BOT_TOKEN}
