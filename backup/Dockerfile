@@ -7,6 +7,6 @@ COPY backup.sh /usr/local/bin/backup.sh
 RUN chmod +x /usr/local/bin/backup.sh
 
 # Формат: минута час день месяц день_недели
-RUN echo "28 * * * * /usr/local/bin/backup.sh >> /var/log/cron.log 2>&1" > /etc/crontabs/root
+RUN echo "0 0,12 * * * /usr/local/bin/backup.sh >> /var/log/cron.log 2>&1" > /etc/crontabs/root
 
 CMD ["crond", "-f", "-d", "8"]
