@@ -1,6 +1,7 @@
 import { Telegraf, Markup } from 'telegraf';
 import dotenv from 'dotenv';
 import { saveRegistration, getRegistration } from './db.js';
+import cron from 'node-cron';
 
 dotenv.config();
 
@@ -102,6 +103,40 @@ const getUserState = (userId) => {
 const setUserState = (userId, state) => {
   userStates.set(userId, state);
 };
+
+// Функция массовой рассылки
+async function sendBroadcast(message) {
+  console.log('🚀 Начинаем массовую рассылку...');
+  
+  try {
+    // Получаем всех пользователей из Supabase
+    const users = await getRegistrations();
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    // Отправляем сообщения с задержкой (для соблюдения лимитов Telegram API)
+    for (const user of users) {
+      try {
+        await bot.telegram.sendMessage(user.telegram_id, message, { parse_mode: 'HTML' });
+        successCount++;
+        console.log(`✅ Отправлено ${user.name} (${user.telegram_id})`);
+        
+        // Задержка 50ms между сообщениями (до 20 сообщений в секунду, безопасный лимит)
+        await new Promise(resolve => setTimeout(resolve, 50));
+      } catch (err) {
+        errorCount++;
+        console.error(`❌ Ошибка отправки ${user.name} (${user.telegram_id}):`, err.message);
+      }
+    }
+
+    console.log(`\n📈 Рассылка завершена:`);
+    console.log(`   ✅ Успешно: ${successCount}`);
+    console.log(`   ❌ Ошибок: ${errorCount}`);
+  } catch (err) {
+    console.error('❌ Критическая ошибка рассылки:', err);
+  }
+}
 
 // Команда /start - показывается при первом открытии бота
 bot.start((ctx) => {
@@ -225,6 +260,22 @@ bot.help((ctx) => {
 bot.catch((err, ctx) => {
   console.error(`Ошибка для ${ctx.updateType}:`, err);
   ctx.reply('Произошла ошибка. Попробуйте позже.');
+});
+
+// Запуск cron задачи для отправки напоминания о вебинаре
+cron.schedule('3 18 * * *', () => {
+  const message = 
+    '🔔 <b>Напоминание о вебинаре!</b>\n\n' +
+    'Вебинар начнется сегодня в 15:00 по МСК.\n\n' +
+    '📌 Подготовьтесь заранее:\n' +
+    '• Проверьте интернет-соединение\n' +
+    '• Приготовьте вопросы спикеру\n\n' +
+    'Ссылка на вебинар будет отправлена за 10 минут до начала.\n\n' +
+    'До встречи! 👋';
+  
+  sendBroadcast(message);
+}, {
+  timezone: 'Europe/Moscow'
 });
 
 // Запуск бота
