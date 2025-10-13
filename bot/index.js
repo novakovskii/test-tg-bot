@@ -1,6 +1,6 @@
 import { Telegraf, Markup } from 'telegraf';
 import dotenv from 'dotenv';
-import { saveRegistration, getRegistration } from './db.js';
+import { saveRegistration, getRegistrations } from './db.js';
 import cron from 'node-cron';
 
 dotenv.config();

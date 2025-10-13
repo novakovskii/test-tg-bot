@@ -59,6 +59,7 @@ const upsertStmt = db.prepare(`
 
 const getByTgIdStmt = db.prepare(`SELECT * FROM registrations WHERE telegram_id = ?`);
 const countStmt = db.prepare(`SELECT COUNT(1) as c FROM registrations`);
+const getRegistrationsStmt = db.prepare(`SELECT * FROM registrations`);
 
 export function saveRegistration(payload) {
   // payload: { telegram_id, firstname, lastname, phone, company, activity_type }
@@ -67,6 +68,17 @@ export function saveRegistration(payload) {
 
 export function getRegistration(telegramId) {
   return getByTgIdStmt.get(telegramId);
+}
+
+export function getRegistrations() {
+  return getRegistrationsStmt.all().map(row => ({
+    telegram_id: row.telegram_id,
+    firstname: row.firstname,
+    lastname: row.lastname,
+    phone: row.phone,
+    company: row.company,
+    activity_type: row.activity_type
+  }));
 }
 
 export function getTotalCount() {
