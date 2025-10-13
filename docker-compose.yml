@@ -17,6 +17,24 @@ services:
     networks:
       - himcentre-network
 
+  backup:
+    build:
+      context: ./backup
+      dockerfile: Dockerfile
+    container_name: himcentre-bot-backup
+    restart: always
+    environment:
+      - TZ=Europe/Moscow
+    volumes:
+      # Доступ к БД бота (только для чтения)
+      - bot-data:/data:ro
+      # Volume для хранения бэкапов
+      - backup-data:/backups
+    networks:
+      - himcentre-network
+    depends_on:
+      - bot
+
   # landing:
   #   build:
   #     context: ./landing
@@ -34,5 +52,7 @@ networks:
 
 volumes:
   bot-data:
+    driver: local
+  backup-data:
     driver: local
 
