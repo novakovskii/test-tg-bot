@@ -12,10 +12,10 @@ services:
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - TZ=Europe/Moscow
-    # Закомментировано для продакшена - код уже в образе
-    # volumes:
-    #   - ./bot:/app
-    #   - /app/node_modules
+      - SQLITE_PATH=/app/data/bot.db
+    volumes:
+      # Volume для сохранения SQLite БД между перезапусками
+      - bot-data:/app/data
     networks:
       - himcentre-network
 
@@ -33,4 +33,8 @@ services:
 networks:
   himcentre-network:
     driver: bridge
+
+volumes:
+  bot-data:
+    driver: local
 
