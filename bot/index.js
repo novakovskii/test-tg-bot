@@ -129,7 +129,7 @@ async function sendBroadcast(message) {
     for (let user of users) {
       
       try {
-        await bot.telegram.sendMessage(user.telegram_id, message, { parse_mode: 'HTML' });
+        await bot.telegram.sendMessage(user.telegram_id, message, { parse_mode: 'HTML', disable_web_page_preview: true });
         successCount++;
         
         // Задержка 33ms между сообщениями (30 сообщений в секунду)
@@ -290,7 +290,7 @@ bot.catch((err, ctx) => {
 });
 
 // Уведомление за 1 день до начала
-cron.schedule('36 7 29 10 *', () => {
+cron.schedule('48 7 29 10 *', () => {
   const message = 
     '🔔 <b>Напоминаем:</b> завтра состоится вебинар «Лучшие практики по соблюдению принципов ХАССП на пищевых производствах и предприятиях общественного питания».\n\n'
     + '🕒 <b>Начало:</b> 10:00 по МСК (15:00 ИРК)\n'
